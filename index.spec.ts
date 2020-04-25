@@ -46,6 +46,18 @@ describe("CloudWatch Metric Helper", () => {
             expect(metrics[0]).to.include({MetricName: 'm1', Value: 2});
             expect(metrics[1]).to.include({...metric1Dim, Value: 6});
         });
+
+        it('only processes first 2 metrics in queue', () => {
+            // 3rd metric should be ignored
+            subject.addMetrics(
+                {...metric1}, {...metric1Dim}, {...metric1Dim, Value: 5},
+            );
+
+            const metrics: Metric[] = subject.reduceAndClear(2);
+            expect(metrics.length).to.eq(2);
+            expect(metrics[0].Value).to.eq(1);
+            expect(metrics[1].Value).to.eq(1);
+        });
     });
 
     describe('AggregateMetricTimedHandler', () => {

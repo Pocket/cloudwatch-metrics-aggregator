@@ -110,6 +110,20 @@ export type HandlerCallback = (metrics: Metric[]) => any;
  * Handler runs at a set interval and executes callback with reduced metrics from queue. This can be used to
  * collect metrics across multiple different actions and automatically aggregate and send to CloudWatch in the
  * background.
+ *
+ * ```typescript
+ * const queue = new AggregateMetricQueue();
+ * const callback: HandlerCallback = (metrics: Metric[]) => {
+ *     // push to cloudwatch
+ * }
+ *
+ * // every 1 sec, execute callback
+ * const handler = new AggregateMetricTimedHandler(queue, callback);
+ * handler.start(1000);
+ *
+ * // in shutdown routine
+ * handler.cancel();
+ * ```
  */
 export class AggregateMetricTimedHandler {
     private timer: any = null;
@@ -136,7 +150,7 @@ export class AggregateMetricTimedHandler {
         }, this.interval);
     }
 
-    process() {
+    protected process() {
         this.callback(this.queue.reduceAndClear(this.queue.count()));
     }
 

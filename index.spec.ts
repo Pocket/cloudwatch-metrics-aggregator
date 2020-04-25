@@ -1,4 +1,4 @@
-import {Metric, AggregateMetricQueue, HandlerCallback, AggregateMetricTimedHandler} from "./index";
+import {Metric, AggregateMetricQueue, HandlerCallback, AggregateMetricTimedHandler, Dimension} from "./index";
 import { expect } from 'chai';
 import 'mocha';
 
@@ -58,6 +58,15 @@ describe("CloudWatch Metric Helper", () => {
             expect(metrics[0].Value).to.eq(1);
             expect(metrics[1].Value).to.eq(1);
         });
+
+        it('aggregates the same dimensions together regardless of key order', () => {
+            const m1 = {...metric1, Dimensions: [{Name: 'abc', Value: 'xyz'}, {Name: 'xyz', Value: 'abc'}]};
+            const m2 = {...metric1, Dimensions: [{Name: 'xyz', Value: 'abc'}, {Name: 'abc', Value: 'xyz'}]};
+            subject.addMetrics(m1, m2);
+            const metrics = subject.reduceAndClear();
+            expect(metrics.length).to.eq(1);
+            expect(metrics[0].Value).to.eq(2);
+        });
     });
 
     describe('AggregateMetricTimedHandler', () => {
@@ -77,11 +86,10 @@ describe("CloudWatch Metric Helper", () => {
                    resolver(true);
                }
            };
-           const queue = new AggregateMetricQueue().addMetrics({...metric1}, {...metric1Dim});
 
+           const queue = new AggregateMetricQueue().addMetrics({...metric1}, {...metric1Dim});
            const subject = new AggregateMetricTimedHandler(queue, callback);
            subject.start(25);
-
            return promise.then(() => {
                subject.cancel();
            });

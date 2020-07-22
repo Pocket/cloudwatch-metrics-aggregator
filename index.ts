@@ -183,7 +183,10 @@ export class AggregateMetricQueue {
 	}
 }
 
-export type HandlerCallback = (metrics: Metric[]) => any;
+export type HandlerCallback = (
+	metrics: Metric[],
+	metricsCoalesced: MetricSet[]
+) => any;
 
 /**
  * Handler runs at a set interval and executes callback with reduced metrics from queue. This can be used to
@@ -192,7 +195,7 @@ export type HandlerCallback = (metrics: Metric[]) => any;
  *
  * ```typescript
  * const queue = new AggregateMetricQueue();
- * const callback: HandlerCallback = (metrics: Metric[]) => {
+ * const callback: HandlerCallback = (metrics: Metric[], metricsCoalesced: MetricSet[]) => {
  *     // push to cloudwatch
  * }
  *
@@ -230,7 +233,9 @@ export class AggregateMetricTimedHandler {
 	}
 
 	protected process() {
-		this.callback(this.queue.reduceAndClear(this.queue.count()));
+		const metrics = this.queue.reduceAndClear(this.queue.count());
+		const metricsCoalesced = AggregateMetricQueue.coalesce(metrics);
+		this.callback(metrics, metricsCoalesced);
 	}
 
 	cancel() {

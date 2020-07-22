@@ -140,6 +140,7 @@ describe("CloudWatch Metric Helper", () => {
 				subject.cancel();
 			});
 		});
+		// @todo check metricsCoalesced
 	});
 });
 

@@ -1,14 +1,22 @@
 export type Dimension = {
-    Name: string
-    Value: string
+	Name: string;
+	Value: string;
 };
 
-export type Metric = {
-    MetricName: string
-    Value: number
-    Timestamp?: Date
-    Unit?: string
-    Dimensions?: Dimension[]
+export type BaseMetric = {
+	MetricName: string;
+	Timestamp?: Date;
+	Unit?: string;
+	Dimensions?: Dimension[];
+};
+
+export type Metric = BaseMetric & {
+	Value: number;
+};
+
+export type MetricSet = BaseMetric & {
+	Values: number[];
+	Counts?: number[];
 };
 
 export type MetricArray = Metric[];
@@ -16,97 +24,163 @@ export type MetricArray = Metric[];
 /**
  * Represents an aggregate view of several of the same metric datapoints.
  */
-export class AggregatedMetric implements Metric {
-    Dimensions?: Dimension[];
-    MetricName: string;
-    Timestamp?: Date;
-    Unit?: string;
-    Value: number;
-    protected _metrics: Metric[] = [];
+export class AggregatedMetric implements Metric, MetricSet {
+	Dimensions?: Dimension[];
+	MetricName: string;
+	Timestamp?: Date;
+	Unit?: string;
+	Value: number;
+	Values: number[] = [];
 
-    constructor(metric: Metric) {
-        this.MetricName = metric.MetricName;
-        this.Value = metric.Value;
-        this.Dimensions = metric.Dimensions;
-    }
+	protected _metrics: Metric[] = [];
 
-    push(metric: Metric): this {
-        this._metrics.push(metric);
-        this.Value = this.Value ? this.Value + metric.Value : metric.Value;
-        return this;
-    }
+	constructor(metric: Metric) {
+		this.MetricName = metric.MetricName;
+		this.Value = metric.Value;
+		this.Values.push(metric.Value);
+		this.Dimensions = metric.Dimensions;
+	}
 
-    count() {
-        return this._metrics.length;
-    }
+	push(metric: Metric): this {
+		this._metrics.push(metric);
+		this.Values.push(metric.Value);
+		this.Value = this.Values.reduce((pv, cv) => pv + cv);
+		return this;
+	}
+
+	count() {
+		return this._metrics.length;
+	}
+
+	getMetric(): Metric {
+		return {
+			MetricName: this.MetricName,
+			Dimensions: this.Dimensions,
+			Timestamp: this.Timestamp,
+			Unit: this.Unit,
+			Value: this.Value,
+		};
+	}
+
+	getMetricSet(): MetricSet {
+		return {
+			MetricName: this.MetricName,
+			Dimensions: this.Dimensions,
+			Timestamp: this.Timestamp,
+			Unit: this.Unit,
+			Values: this.Values,
+		};
+	}
 }
 
 export type AggregateMetricMap = {
-    [key: string]: AggregatedMetric
+	[key: string]: AggregatedMetric;
+};
+
+export type AggregatorOptions = {
+	useStatisticalSet?: boolean;
 };
 
 export class AggregateMetricQueue {
-    private queue: MetricArray = [];
+	private useStatisticalSet = false;
+	private queue: MetricArray = [];
 
-    /**
-     * Adds 0 or more metrics.
-     * @param metrics
-     */
-    addMetrics(...metrics: Metric[]): this {
-        metrics.forEach((m) => this.queue.push(m));
-        return this;
-    }
+	constructor(params?: AggregatorOptions) {
+		const { useStatisticalSet } = { ...(params || {}) };
+		this.useStatisticalSet = !!useStatisticalSet;
+	}
 
-    /**
-     * Reduces queue of metrics into aggregate metric values and clears queue.
-     */
-    reduceAndClear(limit?: number): AggregatedMetric[] {
-        const map: AggregateMetricMap = {};
+	/**
+	 * Adds 0 or more metrics.
+	 * @param metrics
+	 */
+	addMetrics(...metrics: Metric[]): this {
+		metrics.forEach((m) => this.queue.push(m));
+		return this;
+	}
 
-        let metric = this.queue.shift();
-        let counter = 0;
-        while (metric && (!limit || (counter < limit))) {
-            AggregateMetricQueue.mapMetricToAggregator(metric, map);
-            metric = this.queue.shift();
-            counter++;
-        }
+	/**
+	 * Reduces queue of metrics into aggregate metric values and clears queue.
+	 */
+	reduceAndClear(limit?: number): AggregatedMetric[] {
+		const map: AggregateMetricMap = {};
 
-        const arr: AggregatedMetric[] = [];
-        for (let k in map) {
-            arr.push(map[k]);
-        }
+		let metric = this.queue.shift();
+		let counter = 0;
+		while (metric && (!limit || counter < limit)) {
+			AggregateMetricQueue.mapMetricToAggregator(metric, map);
+			metric = this.queue.shift();
+			counter++;
+		}
 
-        return arr;
-    }
+		const arr: AggregatedMetric[] = [];
+		for (let k in map) {
+			arr.push(map[k]);
+		}
 
-    count() {
-        return this.queue.length;
-    }
+		return arr;
+	}
 
-    /**
-     * Generates a unique key for given metric and attempts to look up the corresponding aggregator in the map.
-     * If found, pushes metric onto aggregate metric, otherwise creates a new aggregate in map.
-     * @param metric
-     * @param map
-     */
-    static mapMetricToAggregator(metric: Metric, map: AggregateMetricMap) {
-        // @todo sort dimensions by name to ensure proper matching of all dimension orders in same set
-        const keyMap: any = {MetricName: metric.MetricName};
-        if (metric.Dimensions && metric.Dimensions.length > 0) {
-            keyMap.Dimensions = metric.Dimensions.sort((a, b) => {
-                if (a.Name > b.Name) return 1;
-                else if (a.Name < b.Name) return -1;
-                else return 0;
-            });
-        }
+	/**
+	 * Wraps a call to `reduceAndClear()` with `coalesce()`
+	 * @param limit
+	 */
+	coalesceAndClear(limit?: number): MetricSet[] {
+		return AggregateMetricQueue.coalesce(this.reduceAndClear(limit));
+	}
 
-        const keyStr = JSON.stringify(keyMap);
-        if (!map[keyStr]) {
-            map[keyStr] = new AggregatedMetric(metric);
-        } else {
-            map[keyStr].push(metric);
-        }
-    }
+	count() {
+		return this.queue.length;
+	}
+
+	/**
+	 * Generates a unique key for given metric and attempts to look up the corresponding aggregator in the map.
+	 * If found, pushes metric onto aggregate metric, otherwise creates a new aggregate in map.
+	 * @param metric
+	 * @param map
+	 */
+	static mapMetricToAggregator(metric: Metric, map: AggregateMetricMap) {
+		// @todo sort dimensions by name to ensure proper matching of all dimension orders in same set
+		const keyMap: any = { MetricName: metric.MetricName };
+		if (metric.Dimensions && metric.Dimensions.length > 0) {
+			keyMap.Dimensions = metric.Dimensions.sort((a, b) => {
+				if (a.Name > b.Name) return 1;
+				else if (a.Name < b.Name) return -1;
+				else return 0;
+			});
+		}
+
+		const keyStr = JSON.stringify(keyMap);
+		if (!map[keyStr]) {
+			map[keyStr] = new AggregatedMetric(metric);
+		} else {
+			map[keyStr].push(metric);
+		}
+	}
+
+	/**
+	 * Combines values across the same MetricName regardless of dimension.
+	 * @param metrics
+	 */
+	static coalesce(metrics: AggregatedMetric[]) {
+		const cmap: { [key: string]: MetricSet } = {};
+		for (let metric of metrics) {
+			if (!cmap[metric.MetricName]) {
+				cmap[metric.MetricName] = metric.getMetricSet();
+			} else {
+				cmap[metric.MetricName].Values = cmap[
+					metric.MetricName
+				].Values.concat(metric.getMetricSet().Values);
+			}
+		}
+
+		const arr: MetricSet[] = [];
+		for (let k in cmap) {
+			arr.push(cmap[k]);
+		}
+
+		return arr;
+	}
 }
 
 export type HandlerCallback = (metrics: Metric[]) => any;
@@ -131,37 +205,37 @@ export type HandlerCallback = (metrics: Metric[]) => any;
  * ```
  */
 export class AggregateMetricTimedHandler {
-    private timer: any = null;
-    private interval: number = 1000;
-    private queue: AggregateMetricQueue;
-    private callback: HandlerCallback;
+	private timer: any = null;
+	private interval: number = 1000;
+	private queue: AggregateMetricQueue;
+	private callback: HandlerCallback;
 
-    constructor(queue: AggregateMetricQueue, callback: HandlerCallback) {
-        this.queue = queue;
-        this.callback = callback;
-    }
+	constructor(queue: AggregateMetricQueue, callback: HandlerCallback) {
+		this.queue = queue;
+		this.callback = callback;
+	}
 
-    start(interval?: number) {
-        if (this.timer) {
-            return;
-        }
+	start(interval?: number) {
+		if (this.timer) {
+			return;
+		}
 
-        if (interval && interval > 0) {
-            this.interval = interval;
-        }
+		if (interval && interval > 0) {
+			this.interval = interval;
+		}
 
-        this.timer = setInterval(() => {
-            this.process();
-        }, this.interval);
-    }
+		this.timer = setInterval(() => {
+			this.process();
+		}, this.interval);
+	}
 
-    protected process() {
-        this.callback(this.queue.reduceAndClear(this.queue.count()));
-    }
+	protected process() {
+		this.callback(this.queue.reduceAndClear(this.queue.count()));
+	}
 
-    cancel() {
-        if (this.timer) {
-            clearInterval(this.timer);
-        }
-    }
+	cancel() {
+		if (this.timer) {
+			clearInterval(this.timer);
+		}
+	}
 }

@@ -99,15 +99,31 @@ describe("CloudWatch Metric Helper", () => {
 			subject = new AggregateMetricQueue();
 		});
 
-		it("coalesces 2 similar metrics into 1", () => {
+		it("coalesces 2 similar metrics", () => {
 			subject
 				.addMetrics({ ...metric1 })
 				.addMetrics({ ...metric1Dim, Value: 3 });
 
 			const metrics: MetricSet[] = subject.coalesceAndClear();
-			expect(metrics.length).to.eq(1);
+			expect(metrics.length).to.eq(2);
 			expect(JSON.stringify(metrics[0].Values)).to.eq(
 				JSON.stringify([1, 3])
+			);
+			expect(JSON.stringify(metrics[1].Values)).to.eq(
+				JSON.stringify([3])
+			);
+		});
+
+		it("it expands a metric with dimensions into a coalesced metric without dimensions and original metric", () => {
+			subject.addMetrics({ ...metric1Dim, Value: 3 });
+
+			const metrics: MetricSet[] = subject.coalesceAndClear();
+			expect(metrics.length).to.eq(2);
+			expect(JSON.stringify(metrics[0].Values)).to.eq(
+				JSON.stringify([3])
+			);
+			expect(JSON.stringify(metrics[1].Values)).to.eq(
+				JSON.stringify([3])
 			);
 		});
 	});

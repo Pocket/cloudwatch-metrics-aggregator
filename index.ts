@@ -159,18 +159,37 @@ export class AggregateMetricQueue {
 	}
 
 	/**
-	 * Combines values across the same MetricName regardless of dimension.
+	 * Combines values across the same MetricName regardless of dimension. Note that if only
+	 * metrics for a particular MetricName are present WITH dimensions, an extra metric is
+	 * created WITHOUT dimensions that contains the coalesced values. Example:
+	 *
+	 * ```
+	 * # input
+	 * [ {MetricName: M1, Dimensions: [...], ...}, {MetricName: M1, Dimensions: [...], ...} ]
+	 *
+	 * # output
+	 * [ {MetricName: M1, Values: [...], ...}, {MetricName: M1, Dimensions: [...], ...}, {MetricName: M1, Dimensions: [...], ...}]
+	 * ```
+	 *
 	 * @param metrics
 	 */
 	static coalesce(metrics: AggregatedMetric[]) {
 		const cmap: { [key: string]: MetricSet } = {};
 		for (let metric of metrics) {
-			if (!cmap[metric.MetricName]) {
-				cmap[metric.MetricName] = metric.getMetricSet();
+			const keyCoalesce = metric.MetricName + "[]";
+			const keyUnique =
+				metric.MetricName + JSON.stringify(metric.Dimensions ?? []);
+
+			if (!cmap[keyCoalesce]) {
+				cmap[keyCoalesce] = metric.getMetricSet();
 			} else {
-				cmap[metric.MetricName].Values = cmap[
-					metric.MetricName
-				].Values.concat(metric.getMetricSet().Values);
+				cmap[keyCoalesce].Values = cmap[keyCoalesce].Values.concat(
+					metric.getMetricSet().Values
+				);
+			}
+
+			if (keyCoalesce != keyUnique) {
+				cmap[keyUnique] = metric;
 			}
 		}
 

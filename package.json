@@ -3,7 +3,8 @@
 	"description": "Simple utility classes/methods to collect CloudWatch metrics and aggregate.",
 	"version": "0.1.1",
 	"scripts": {
-		"test": "mocha -r ts-node/register *.spec.ts"
+		"test": "mocha -r ts-node/register *.spec.ts",
+		"build": "rm -rf dist && tsc"
 	},
 	"main": "dist/index.js",
 	"types": "index.d.ts",

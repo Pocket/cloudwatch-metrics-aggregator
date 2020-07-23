@@ -66,7 +66,18 @@ export declare class AggregateMetricQueue {
      */
     static mapMetricToAggregator(metric: Metric, map: AggregateMetricMap): void;
     /**
-     * Combines values across the same MetricName regardless of dimension.
+     * Combines values across the same MetricName regardless of dimension. Note that if only
+     * metrics for a particular MetricName are present WITH dimensions, an extra metric is
+     * created WITHOUT dimensions that contains the coalesced values. Example:
+     *
+     * ```
+     * # input
+     * [ {MetricName: M1, Dimensions: [...], ...}, {MetricName: M1, Dimensions: [...], ...} ]
+     *
+     * # output
+     * [ {MetricName: M1, Values: [...], ...}, {MetricName: M1, Dimensions: [...], ...}, {MetricName: M1, Dimensions: [...], ...}]
+     * ```
+     *
      * @param metrics
      */
     static coalesce(metrics: AggregatedMetric[]): MetricSet[];

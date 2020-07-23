@@ -109,6 +109,7 @@ describe("CloudWatch Metric Helper", () => {
 			expect(JSON.stringify(metrics[0].Values)).to.eq(
 				JSON.stringify([1, 3])
 			);
+			expect(metrics[0].Dimensions).to.eq(undefined);
 			expect(JSON.stringify(metrics[1].Values)).to.eq(
 				JSON.stringify([3])
 			);

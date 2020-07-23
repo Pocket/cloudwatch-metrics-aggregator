@@ -182,6 +182,7 @@ export class AggregateMetricQueue {
 
 			if (!cmap[keyCoalesce]) {
 				cmap[keyCoalesce] = metric.getMetricSet();
+				cmap[keyCoalesce].Dimensions = undefined;
 			} else {
 				cmap[keyCoalesce].Values = cmap[keyCoalesce].Values.concat(
 					metric.getMetricSet().Values

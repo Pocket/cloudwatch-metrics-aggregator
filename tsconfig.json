@@ -11,7 +11,7 @@
 		"resolveJsonModule": true,
 		"isolatedModules": true,
 		"declaration": true,
-		"outDir": ".",
+		"outDir": "dist",
 		"types": []
 	},
 	"exclude": ["node_modules"],

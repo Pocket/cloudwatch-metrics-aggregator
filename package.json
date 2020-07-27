@@ -4,9 +4,9 @@
 	"version": "0.1.1",
 	"scripts": {
 		"test": "mocha -r ts-node/register *.spec.ts",
-		"build": "tsc"
+		"build": "rm -rf dist && tsc && rm index.js"
 	},
-	"main": "index.js",
+	"main": "dist/index.js",
 	"types": "index.d.ts",
 	"dependencies": {},
 	"devDependencies": {

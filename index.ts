@@ -22,7 +22,8 @@ export type MetricSet = BaseMetric & {
 export type MetricArray = Metric[];
 
 /**
- * Represents an aggregate view of several of the same metric datapoints.
+ * Represents an aggregate view of several of the same metric datapoints
+ * (with 'same' meaning MetricName and Dimensions match).
  */
 export class AggregatedMetric implements Metric, MetricSet {
 	Dimensions?: Dimension[];
@@ -70,6 +71,13 @@ export class AggregatedMetric implements Metric, MetricSet {
 			Unit: this.Unit,
 			Values: this.Values,
 		};
+	}
+
+	/**
+	 * JSON view defaults to metric set
+	 */
+	toJSON() {
+		return this.getMetricSet();
 	}
 }
 
@@ -165,10 +173,13 @@ export class AggregateMetricQueue {
 	 *
 	 * ```
 	 * # input
-	 * [ {MetricName: M1, Dimensions: [...], ...}, {MetricName: M1, Dimensions: [...], ...} ]
+	 * [ {MetricName: M1, Dimensions: [...], ...},
+	 *   {MetricName: M1, Dimensions: [...], ...} ]
 	 *
 	 * # output
-	 * [ {MetricName: M1, Values: [...], ...}, {MetricName: M1, Dimensions: [...], ...}, {MetricName: M1, Dimensions: [...], ...}]
+	 * [ {MetricName: M1, Values: [...], ...}, # dimension-less
+	 *   {MetricName: M1, Dimensions: [...], ...},
+	 *   {MetricName: M1, Dimensions: [...], ...} ]
 	 * ```
 	 *
 	 * @param metrics
@@ -190,7 +201,7 @@ export class AggregateMetricQueue {
 			}
 
 			if (keyCoalesce != keyUnique) {
-				cmap[keyUnique] = metric;
+				cmap[keyUnique] = metric.getMetricSet();
 			}
 		}
 

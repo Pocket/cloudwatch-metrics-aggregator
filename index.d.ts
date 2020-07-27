@@ -17,7 +17,8 @@ export declare type MetricSet = BaseMetric & {
 };
 export declare type MetricArray = Metric[];
 /**
- * Represents an aggregate view of several of the same metric datapoints.
+ * Represents an aggregate view of several of the same metric datapoints
+ * (with 'same' meaning MetricName and Dimensions match).
  */
 export declare class AggregatedMetric implements Metric, MetricSet {
     Dimensions?: Dimension[];
@@ -32,6 +33,10 @@ export declare class AggregatedMetric implements Metric, MetricSet {
     count(): number;
     getMetric(): Metric;
     getMetricSet(): MetricSet;
+    /**
+     * JSON view defaults to metric set
+     */
+    toJSON(): MetricSet;
 }
 export declare type AggregateMetricMap = {
     [key: string]: AggregatedMetric;
@@ -72,10 +77,13 @@ export declare class AggregateMetricQueue {
      *
      * ```
      * # input
-     * [ {MetricName: M1, Dimensions: [...], ...}, {MetricName: M1, Dimensions: [...], ...} ]
+     * [ {MetricName: M1, Dimensions: [...], ...},
+     *   {MetricName: M1, Dimensions: [...], ...} ]
      *
      * # output
-     * [ {MetricName: M1, Values: [...], ...}, {MetricName: M1, Dimensions: [...], ...}, {MetricName: M1, Dimensions: [...], ...}]
+     * [ {MetricName: M1, Values: [...], ...}, # dimension-less
+     *   {MetricName: M1, Dimensions: [...], ...},
+     *   {MetricName: M1, Dimensions: [...], ...} ]
      * ```
      *
      * @param metrics

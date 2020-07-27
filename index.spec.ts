@@ -120,6 +120,12 @@ describe("CloudWatch Metric Helper", () => {
 
 			const metrics: MetricSet[] = subject.coalesceAndClear();
 			expect(metrics.length).to.eq(2);
+
+			// ensure no extra props are leaking through. this would happen on the original metric object, not the generated
+			// coalesced metric
+			expect(typeof (metrics[1] as any)._metrics).to.eq("undefined");
+			expect(typeof (metrics[1] as any).Value).to.eq("undefined");
+
 			expect(JSON.stringify(metrics[0].Values)).to.eq(
 				JSON.stringify([3])
 			);

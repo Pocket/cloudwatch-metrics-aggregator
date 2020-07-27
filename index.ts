@@ -148,7 +148,6 @@ export class AggregateMetricQueue {
 	 * @param map
 	 */
 	static mapMetricToAggregator(metric: Metric, map: AggregateMetricMap) {
-		// @todo sort dimensions by name to ensure proper matching of all dimension orders in same set
 		const keyMap: any = { MetricName: metric.MetricName };
 		if (metric.Dimensions && metric.Dimensions.length > 0) {
 			keyMap.Dimensions = metric.Dimensions.sort((a, b) => {

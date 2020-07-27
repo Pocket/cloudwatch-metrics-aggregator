@@ -271,6 +271,7 @@ export class AggregateMetricTimedHandler {
 	cancel() {
 		if (this.timer) {
 			clearInterval(this.timer);
+			this.timer = null;
 		}
 	}
 }

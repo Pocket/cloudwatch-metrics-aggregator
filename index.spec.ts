@@ -1,5 +1,6 @@
 import {
 	Metric,
+	AggregatedMetric,
 	AggregateMetricQueue,
 	HandlerCallback,
 	AggregateMetricTimedHandler,
@@ -26,6 +27,20 @@ describe("CloudWatch Metric Helper", () => {
 		],
 	};
 
+	describe("AggregatedMetric", () => {
+		const subject = new AggregatedMetric({
+			...metric1,
+			Unit: "Nanoseconds",
+		});
+
+		it("seeds initial properties from metric", () => {
+			expect(subject).to.deep.include({
+				...metric1,
+				Unit: "Nanoseconds",
+			});
+		});
+	});
+
 	describe("AggregateMetricQueue", () => {
 		let subject: AggregateMetricQueue;
 
@@ -34,11 +49,17 @@ describe("CloudWatch Metric Helper", () => {
 		});
 
 		it("reduces 2 of the same metrics into 1", () => {
-			subject.addMetrics({ ...metric1 }).addMetrics({ ...metric1 });
+			subject
+				.addMetrics({ ...metric1, Unit: "Microseconds" })
+				.addMetrics({ ...metric1 });
 
 			const metrics: Metric[] = subject.reduceAndClear();
 			expect(metrics.length).to.eq(1);
-			expect(metrics[0]).to.include({ MetricName: "m1", Value: 2 });
+			expect(metrics[0]).to.include({
+				MetricName: "m1",
+				Value: 2,
+				Unit: "Microseconds",
+			});
 			expect(subject.count()).to.eq(0);
 		});
 
@@ -99,15 +120,42 @@ describe("CloudWatch Metric Helper", () => {
 			subject = new AggregateMetricQueue();
 		});
 
-		it("coalesces 2 similar metrics into 1", () => {
+		it("coalesces 2 similar metrics", () => {
 			subject
 				.addMetrics({ ...metric1 })
 				.addMetrics({ ...metric1Dim, Value: 3 });
 
 			const metrics: MetricSet[] = subject.coalesceAndClear();
-			expect(metrics.length).to.eq(1);
+			expect(metrics.length).to.eq(2);
 			expect(JSON.stringify(metrics[0].Values)).to.eq(
 				JSON.stringify([1, 3])
+			);
+			expect(metrics[0].Dimensions).to.eq(undefined);
+			expect(JSON.stringify(metrics[1].Values)).to.eq(
+				JSON.stringify([3])
+			);
+		});
+
+		it("expands a metric with dimensions into a coalesced metric without dimensions and original metric", () => {
+			subject.addMetrics({
+				...metric1Dim,
+				Value: 3,
+				Unit: "Microseconds",
+			});
+
+			const metrics: MetricSet[] = subject.coalesceAndClear();
+			expect(metrics.length).to.eq(2);
+
+			// ensure no extra props are leaking through. this would happen on the original metric object, not the generated
+			// coalesced metric
+			expect(typeof (metrics[1] as any)._metrics).to.eq("undefined");
+			expect(typeof (metrics[1] as any).Value).to.eq("undefined");
+
+			expect(JSON.stringify(metrics[0].Values)).to.eq(
+				JSON.stringify([3])
+			);
+			expect(JSON.stringify(metrics[1].Values)).to.eq(
+				JSON.stringify([3])
 			);
 		});
 	});

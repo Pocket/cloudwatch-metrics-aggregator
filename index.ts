@@ -22,7 +22,8 @@ export type MetricSet = BaseMetric & {
 export type MetricArray = Metric[];
 
 /**
- * Represents an aggregate view of several of the same metric datapoints.
+ * Represents an aggregate view of several of the same metric datapoints
+ * (with 'same' meaning MetricName and Dimensions match).
  */
 export class AggregatedMetric implements Metric, MetricSet {
 	Dimensions?: Dimension[];
@@ -39,6 +40,7 @@ export class AggregatedMetric implements Metric, MetricSet {
 		this.Value = metric.Value;
 		this.Values.push(metric.Value);
 		this.Dimensions = metric.Dimensions;
+		this.Unit = metric.Unit;
 	}
 
 	push(metric: Metric): this {
@@ -71,24 +73,21 @@ export class AggregatedMetric implements Metric, MetricSet {
 			Values: this.Values,
 		};
 	}
+
+	/**
+	 * JSON view defaults to metric set
+	 */
+	toJSON() {
+		return this.getMetricSet();
+	}
 }
 
 export type AggregateMetricMap = {
 	[key: string]: AggregatedMetric;
 };
 
-export type AggregatorOptions = {
-	useStatisticalSet?: boolean;
-};
-
 export class AggregateMetricQueue {
-	private useStatisticalSet = false;
 	private queue: MetricArray = [];
-
-	constructor(params?: AggregatorOptions) {
-		const { useStatisticalSet } = { ...(params || {}) };
-		this.useStatisticalSet = !!useStatisticalSet;
-	}
 
 	/**
 	 * Adds 0 or more metrics.
@@ -140,7 +139,6 @@ export class AggregateMetricQueue {
 	 * @param map
 	 */
 	static mapMetricToAggregator(metric: Metric, map: AggregateMetricMap) {
-		// @todo sort dimensions by name to ensure proper matching of all dimension orders in same set
 		const keyMap: any = { MetricName: metric.MetricName };
 		if (metric.Dimensions && metric.Dimensions.length > 0) {
 			keyMap.Dimensions = metric.Dimensions.sort((a, b) => {
@@ -159,18 +157,42 @@ export class AggregateMetricQueue {
 	}
 
 	/**
-	 * Combines values across the same MetricName regardless of dimension.
+	 * Combines values across the same MetricName regardless of dimension. Note that if only
+	 * metrics for a particular MetricName are present WITH dimensions, an extra metric is
+	 * created WITHOUT dimensions that contains the coalesced values. Example:
+	 *
+	 * ```
+	 * # input
+	 * [ {MetricName: M1, Dimensions: [...], ...},
+	 *   {MetricName: M1, Dimensions: [...], ...} ]
+	 *
+	 * # output
+	 * [ {MetricName: M1, Values: [...], ...}, # dimension-less
+	 *   {MetricName: M1, Dimensions: [...], ...},
+	 *   {MetricName: M1, Dimensions: [...], ...} ]
+	 * ```
+	 *
 	 * @param metrics
 	 */
 	static coalesce(metrics: AggregatedMetric[]) {
 		const cmap: { [key: string]: MetricSet } = {};
 		for (let metric of metrics) {
-			if (!cmap[metric.MetricName]) {
-				cmap[metric.MetricName] = metric.getMetricSet();
+			const keyCoalesce = metric.MetricName + "[]";
+			const keyUnique =
+				metric.MetricName + JSON.stringify(metric.Dimensions ?? []);
+
+			if (!cmap[keyCoalesce]) {
+				cmap[keyCoalesce] = metric.getMetricSet();
+				cmap[keyCoalesce].Dimensions = undefined;
+				cmap[keyCoalesce].Unit = metric.Unit;
 			} else {
-				cmap[metric.MetricName].Values = cmap[
-					metric.MetricName
-				].Values.concat(metric.getMetricSet().Values);
+				cmap[keyCoalesce].Values = cmap[keyCoalesce].Values.concat(
+					metric.getMetricSet().Values
+				);
+			}
+
+			if (keyCoalesce != keyUnique) {
+				cmap[keyUnique] = metric.getMetricSet();
 			}
 		}
 
@@ -241,6 +263,7 @@ export class AggregateMetricTimedHandler {
 	cancel() {
 		if (this.timer) {
 			clearInterval(this.timer);
+			this.timer = null;
 		}
 	}
 }

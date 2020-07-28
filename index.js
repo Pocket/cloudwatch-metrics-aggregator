@@ -1,6 +1,5 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AggregateMetricTimedHandler = exports.AggregateMetricQueue = exports.AggregatedMetric = void 0;
 /**
  * Represents an aggregate view of several of the same metric datapoints
  * (with 'same' meaning MetricName and Dimensions match).

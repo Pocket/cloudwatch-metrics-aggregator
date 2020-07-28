@@ -234,10 +234,16 @@ export class AggregateMetricTimedHandler {
 	private interval: number = 1000;
 	private queue: AggregateMetricQueue;
 	private callback: HandlerCallback;
+	private reduceLimit: number | undefined;
 
 	constructor(queue: AggregateMetricQueue, callback: HandlerCallback) {
 		this.queue = queue;
 		this.callback = callback;
+	}
+
+	setReduceLimit(lim: number | undefined): this {
+		this.reduceLimit = lim;
+		return this;
 	}
 
 	start(interval?: number) {
@@ -255,7 +261,9 @@ export class AggregateMetricTimedHandler {
 	}
 
 	protected process() {
-		const metrics = this.queue.reduceAndClear(this.queue.count());
+		const metrics = this.queue.reduceAndClear(
+			this.reduceLimit ?? this.queue.count()
+		);
 		const metricsCoalesced = AggregateMetricQueue.coalesce(metrics);
 		this.callback(metrics, metricsCoalesced);
 	}

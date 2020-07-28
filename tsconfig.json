@@ -11,11 +11,11 @@
 		"resolveJsonModule": true,
 		"isolatedModules": true,
 		"declaration": true,
-		"outDir": "dist"
+		"outDir": "./"
 	},
 	"exclude": ["node_modules"],
 	"include": [
-		"index.ts",
+		"src/index.ts",
 		"node_modules/typescript/lib/lib.es2015.iterable.d.ts"
 	]
 }

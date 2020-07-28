@@ -41,13 +41,8 @@ export declare class AggregatedMetric implements Metric, MetricSet {
 export declare type AggregateMetricMap = {
     [key: string]: AggregatedMetric;
 };
-export declare type AggregatorOptions = {
-    useStatisticalSet?: boolean;
-};
 export declare class AggregateMetricQueue {
-    private useStatisticalSet;
     private queue;
-    constructor(params?: AggregatorOptions);
     /**
      * Adds 0 or more metrics.
      * @param metrics

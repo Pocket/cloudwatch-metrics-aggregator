@@ -40,6 +40,7 @@ export class AggregatedMetric implements Metric, MetricSet {
 		this.Value = metric.Value;
 		this.Values.push(metric.Value);
 		this.Dimensions = metric.Dimensions;
+		this.Unit = metric.Unit;
 	}
 
 	push(metric: Metric): this {
@@ -85,18 +86,8 @@ export type AggregateMetricMap = {
 	[key: string]: AggregatedMetric;
 };
 
-export type AggregatorOptions = {
-	useStatisticalSet?: boolean;
-};
-
 export class AggregateMetricQueue {
-	private useStatisticalSet = false;
 	private queue: MetricArray = [];
-
-	constructor(params?: AggregatorOptions) {
-		const { useStatisticalSet } = { ...(params || {}) };
-		this.useStatisticalSet = !!useStatisticalSet;
-	}
 
 	/**
 	 * Adds 0 or more metrics.
@@ -193,6 +184,7 @@ export class AggregateMetricQueue {
 			if (!cmap[keyCoalesce]) {
 				cmap[keyCoalesce] = metric.getMetricSet();
 				cmap[keyCoalesce].Dimensions = undefined;
+				cmap[keyCoalesce].Unit = metric.Unit;
 			} else {
 				cmap[keyCoalesce].Values = cmap[keyCoalesce].Values.concat(
 					metric.getMetricSet().Values

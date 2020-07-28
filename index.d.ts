@@ -110,7 +110,9 @@ export declare class AggregateMetricTimedHandler {
     private interval;
     private queue;
     private callback;
+    private reduceLimit;
     constructor(queue: AggregateMetricQueue, callback: HandlerCallback);
+    setReduceLimit(lim: number | undefined): this;
     start(interval?: number): void;
     protected process(): void;
     cancel(): void;

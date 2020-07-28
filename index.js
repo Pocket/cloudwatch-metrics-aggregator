@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.AggregateMetricTimedHandler = exports.AggregateMetricQueue = exports.AggregatedMetric = void 0;
 /**
  * Represents an aggregate view of several of the same metric datapoints
  * (with 'same' meaning MetricName and Dimensions match).
@@ -184,6 +185,10 @@ class AggregateMetricTimedHandler {
         this.queue = queue;
         this.callback = callback;
     }
+    setReduceLimit(lim) {
+        this.reduceLimit = lim;
+        return this;
+    }
     start(interval) {
         if (this.timer) {
             return;
@@ -196,7 +201,7 @@ class AggregateMetricTimedHandler {
         }, this.interval);
     }
     process() {
-        const metrics = this.queue.reduceAndClear(this.queue.count());
+        const metrics = this.queue.reduceAndClear(this.reduceLimit ?? this.queue.count());
         const metricsCoalesced = AggregateMetricQueue.coalesce(metrics);
         this.callback(metrics, metricsCoalesced);
     }

@@ -1,7 +1,7 @@
 {
 	"name": "cloudwatch-metrics-aggregator",
 	"description": "Simple utility classes/methods to collect CloudWatch metrics and aggregate.",
-	"version": "0.1.1",
+	"version": "0.2.1",
 	"scripts": {
 		"test": "mocha -r ts-node/register src/*.spec.ts",
 		"build": "rm -rf index.js index.d.ts && tsc"
